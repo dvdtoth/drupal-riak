@@ -1,0 +1,14 @@
+<?php
+
+/**
+ * @file
+ * Set up RIAK variables
+ */
+
+/**
+ * Implements hook_install().
+ */
+function riak_install() {
+  variable_set('riak_host', '127.0.0.1');
+  variable_set('riak_port', '8098');
+}

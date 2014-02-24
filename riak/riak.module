@@ -1,0 +1,241 @@
+<?php
+
+/**
+ * @file
+ * This module is a Drupal implementation of the Basho Riak PHP library
+ * https://github.com/basho/riak-php-client
+ *
+ * @Author
+ * David Toth
+ */
+
+$path = libraries_get_path('riak-php-client');
+
+require_once($path . '/src/Basho/Riak/Riak.php');
+require_once($path . '/src/Basho/Riak/Bucket.php');
+require_once($path . '/src/Basho/Riak/Exception.php');
+require_once($path . '/src/Basho/Riak/Link.php');
+require_once($path . '/src/Basho/Riak/MapReduce.php');
+require_once($path . '/src/Basho/Riak/Object.php');
+require_once($path . '/src/Basho/Riak/StringIO.php');
+require_once($path . '/src/Basho/Riak/Utils.php');
+require_once($path . '/src/Basho/Riak/Link/Phase.php');
+require_once($path . '/src/Basho/Riak/MapReduce/Phase.php');
+
+
+/**
+ * Set up RIAK client
+ * @return \Basho\Riak\Riak
+ */
+function riak_client() {
+  return new Basho\Riak\Riak(
+    variable_get('riak_host'),
+    variable_get('riak_port')
+  );
+}
+
+/**
+ * Return a RIAK bucket
+ * @param $bucket_name
+ * @return \Basho\Riak\Bucket
+ */
+function riak_get_bucket($bucket_name) {
+
+  return riak_client()->bucket($bucket_name);
+}
+
+/**
+ * Create a RIAK Object
+ * @param $bucket
+ * @param $key
+ * @param array $value
+ * @param $save
+ * @return Object
+ */
+function riak_create($bucket, $key, $value) {
+  // Select bucket
+  $bucket = riak_get_bucket($bucket);
+  // Create new object
+  return $bucket->newObject($key, $value);
+}
+
+/**
+ * Store a data in RIAK
+ * @param null|Object $object
+ * Modify object by getting them first than pass in the $object here.
+ * @internal param $bucket
+ * @internal param $key
+ * @internal param array $value
+ * @return mixed
+ */
+function riak_store(Object $object) {
+  // Save the object to RIAK
+  return $object->store();
+}
+
+/**
+ * Get data from RIAK
+ * @param $bucket
+ * @param $key
+ * @return Object
+ */
+function riak_get($bucket, $key) {
+
+  return riak_get_bucket($bucket)->get($key);
+}
+
+/**
+ * Delete object from RIAK
+ * @param $bucket
+ * @param $key
+ * @param Object $object
+ * @return mixed
+ */
+function riak_delete($bucket, $key, Object $object = NULL) {
+  if (empty($object)) {
+    $object = riak_get_bucket($bucket)->get($key);
+  }
+
+  return $object->delete();
+}
+
+/**
+ * Get all keys from bucket
+ * Note: this operation is pretty slow.
+ * @param $bucket
+ * @return Array
+ */
+function riak_get_keys($bucket) {
+
+  return riak_client()->bucket($bucket)->getKeys();
+}
+
+/**
+ * Search
+ * @param $bucket
+ * @param $conditions
+ * Example:
+ * For data like
+ * array("foo"=>"one", "bar"=>"red")
+ * conditions would be like
+ * foo:one OR bar:red
+ * @return array
+ */
+function riak_search($bucket, $conditions) {
+
+  return riak_client()->search($bucket, $conditions)->run();
+}
+
+/**
+ * Add link
+ * @param Object $object
+ * @param Object $target
+ * @param $tag
+ * @return
+ * @internal param Object $source
+ */
+function riak_add_link(Object $object, Object $target, $tag) {
+  return $object->addLink($target, $tag)->store();
+}
+
+/**
+ * Remove link
+ * @param Object $object
+ * @param Object $target
+ * @param $tag
+ * @return
+ * @internal param Object $source
+ */
+function riak_remove_link(Object $object, Object $target, $tag) {
+  return $object->removeLink($target, $tag)->store();
+}
+
+/**
+ * Get links
+ * @param Object $object
+ * @return mixed
+ */
+function riak_get_link(Object $object) {
+  return $object->getLinks();
+}
+
+/**
+ * Linkwalking
+ * Note: To dereference to the linked object use Link::get() method
+ * @param Object $object
+ * @param $bucket
+ * @param $tag
+ * @return
+ */
+function riak_linkwalk(Object $object, $bucket, $tag) {
+  return $object->link($bucket, $tag)->run();
+}
+
+/**
+ * RIAK MapReduce wrapper function
+ * @param $bucket
+ * @param null $key
+ * @param null $map
+ * @param null $reduce
+ * @return array
+ */
+function riak_mapreduce($bucket, $key = NULL, $map = NULL, $reduce = NULL) {
+
+  $mr = ($key === NULL) ? riak_client()->add($bucket) : riak_client()->add($bucket);
+
+  if (!empty($map)) {
+    $mr->map($map);
+  }
+  if (!empty($reduce)) {
+    $mr->reduce($reduce);
+  }
+  return $mr->run();
+}
+
+/**
+ * Experimental multi get function
+ * @param $bucket
+ * @param array $keys
+ * @return array
+ */
+function riak_multi_get($bucket, $keys = array()) {
+
+  // Map JS
+  $map =
+    "function (v) {
+       keys = " . json_encode($keys) . ";" .
+    "for (i = 0; i < keys.length; ++i) {
+        if (keys[i] == v.key){
+          // return [v];
+          return [v.values[0]];
+        }
+     }
+     return [];
+  }";
+
+  /*
+  // Reduce JS
+  $reduce =
+    "function (values) {
+       var result = [];
+       for (i = 0; i < values.length; ++i) {
+         if (values[i] !== 0) {
+           result.push(values[i]);
+         }}
+       return result;
+    }";
+  */
+
+  $results = riak_mapreduce($bucket, NULL, $map);
+
+  if (empty($results)) {
+    return;
+  }
+
+  $decoded = array();
+  foreach ($results as $result) {
+    $decoded[] = json_decode($result);
+  }
+
+  return $decoded;
+}
