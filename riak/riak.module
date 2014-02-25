@@ -2,8 +2,10 @@
 
 /**
  * @file
- * This module is a Drupal implementation of the Basho Riak PHP library
+ * This module is a Drupal implementation of the Basho Riak PHP client
  * https://github.com/basho/riak-php-client
+ * For SSL support use this fork:
+ * https://github.com/dvdtoth/riak-php-client
  *
  * @Author
  * David Toth
@@ -30,7 +32,8 @@ require_once($path . '/src/Basho/Riak/MapReduce/Phase.php');
 function riak_client() {
   return new Basho\Riak\Riak(
     variable_get('riak_host'),
-    variable_get('riak_port')
+    variable_get('riak_port'),
+    variable_get('riak_ssl', array())
   );
 }
 
@@ -49,7 +52,6 @@ function riak_get_bucket($bucket_name) {
  * @param $bucket
  * @param $key
  * @param array $value
- * @param $save
  * @return Object
  */
 function riak_create($bucket, $key, $value) {
@@ -115,10 +117,7 @@ function riak_get_keys($bucket) {
  * @param $bucket
  * @param $conditions
  * Example:
- * For data like
- * array("foo"=>"one", "bar"=>"red")
- * conditions would be like
- * foo:one OR bar:red
+ * https://github.com/basho/riak-php-client#using-search
  * @return array
  */
 function riak_search($bucket, $conditions) {
@@ -132,7 +131,6 @@ function riak_search($bucket, $conditions) {
  * @param Object $target
  * @param $tag
  * @return
- * @internal param Object $source
  */
 function riak_add_link(Object $object, Object $target, $tag) {
   return $object->addLink($target, $tag)->store();
@@ -144,7 +142,6 @@ function riak_add_link(Object $object, Object $target, $tag) {
  * @param Object $target
  * @param $tag
  * @return
- * @internal param Object $source
  */
 function riak_remove_link(Object $object, Object $target, $tag) {
   return $object->removeLink($target, $tag)->store();
@@ -161,7 +158,6 @@ function riak_get_link(Object $object) {
 
 /**
  * Linkwalking
- * Note: To dereference to the linked object use Link::get() method
  * @param Object $object
  * @param $bucket
  * @param $tag
