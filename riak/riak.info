@@ -1,5 +1,5 @@
 name = RIAK
-description = RIAK php client implementation
+description = RIAK PHP client implementation
 package = RIAK
 core = 7.x
 version = "7.x-1.x-dev"

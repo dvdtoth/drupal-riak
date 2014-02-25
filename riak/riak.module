@@ -234,7 +234,6 @@ function riak_multi_get($bucket, $keys = array()) {
        keys = " . json_encode($keys) . ";" .
     "for (i = 0; i < keys.length; ++i) {
         if (keys[i] == v.key){
-          // return [v];
           return [v.values[0]];
         }
      }
@@ -262,7 +261,9 @@ function riak_multi_get($bucket, $keys = array()) {
 
   $decoded = array();
   foreach ($results as $result) {
-    $decoded[] = json_decode($result);
+    if (!empty($result->data)) {
+      $decoded[] = json_decode($result->data);
+    }
   }
 
   return $decoded;
