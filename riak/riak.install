@@ -12,3 +12,15 @@ function riak_install() {
   variable_set('riak_host', '127.0.0.1');
   variable_set('riak_port', '8098');
 }
+
+/**
+ * Implements hook_uninstall().
+ */
+function riak_uninstall() {
+  variable_del('riak_host');
+  variable_del('riak_port');
+  variable_del('riak_ssl_enabled');
+  variable_del('riak_ssl_ca_cert');
+  variable_del('riak_ssl_client_cert');
+  variable_del('riak_ssl_client_key');
+}

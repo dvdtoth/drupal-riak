@@ -2,13 +2,13 @@
 
 /**
  * @file
- * This module is a Drupal implementation of the Basho Riak PHP client
+ * Drupal implementation of the Basho Riak PHP client
  * https://github.com/basho/riak-php-client
  * For SSL support use this fork:
  * https://github.com/dvdtoth/riak-php-client
  *
  * @Author
- * David Toth
+ * David Toth @dvdtoth
  */
 
 $path = libraries_get_path('riak-php-client');
@@ -26,15 +26,47 @@ require_once($path . '/src/Basho/Riak/MapReduce/Phase.php');
 
 
 /**
+ * Implements hook_menu().
+ * @return mixed
+ */
+function riak_menu() {
+
+  $items['admin/config/riak/settings'] = array(
+    'title' => 'Riak settings',
+    'description' => 'Configure Riak data storage',
+    'access callback' => 'user_access',
+    'access arguments' => array('administer site configuration'),
+    'file' => 'riak.admin.inc',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('riak_settings_form'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
  * Set up RIAK client
  * @return \Basho\Riak\Riak
  */
 function riak_client() {
-  return new Basho\Riak\Riak(
-    variable_get('riak_host'),
-    variable_get('riak_port'),
-    variable_get('riak_ssl', array())
-  );
+  if (variable_get('riak_ssl_enabled', FALSE) == FALSE) {
+    return new Basho\Riak\Riak(
+      variable_get('riak_host'),
+      variable_get('riak_port')
+    );
+  }
+  else {
+    return new Basho\Riak\Riak(
+      variable_get('riak_host'),
+      variable_get('riak_port'),
+      array(
+        'ca_cert' => variable_get('riak_ssl_ca_cert'),
+        'client_cert' => variable_get('riak_ssl_client_cert'),
+        'client_key' => variable_get('riak_ssl_client_key')
+      )
+    );
+  }
 }
 
 /**
